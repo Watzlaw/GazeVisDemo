@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 
 
@@ -17,16 +18,20 @@ using System.Collections.Generic;
 		private bool wasReleased = true;
 		private bool isRec = true;
 		public List<RecordData> PlayerMovPath = new List<RecordData>();
+		public GameObject test;
+		private GameObject gazeEmpty;
+		private GUI GazeInfo;
+		private bool showGazeInfo;
+		private bool ShowGUI;
 		
 		// Use this for initialization
-		void Start () {
-			
+		void Start () {			
 			origin = this.transform;
 			
 		if (this.GetComponent<LineRenderer>() == null) gameObject.AddComponent<LineRenderer>();
 			gazeRenderer = this.GetComponent<LineRenderer> ();
 			gazeRenderer.enabled = true;
-		gazeRenderer.SetWidth(0.05f,0.01f);
+			gazeRenderer.SetWidth(0.05f,0.01f);
 			gazeRenderer.useWorldSpace = true;
 			gazeRenderer.SetVertexCount (2);
 			gazeRenderer.SetPosition (0, origin.position);
@@ -34,12 +39,34 @@ using System.Collections.Generic;
 			
 			PlayerMovPathRenderer = Camera.main.GetComponent<LineRenderer>();
 			if (PlayerMovPathRenderer) {
-				PlayerMovPathRenderer.enabled = true;
+				PlayerMovPathRenderer.enabled = false;
 				PlayerMovPathRenderer.useWorldSpace = true;
 				
 			}
 			
+		gazeEmpty = new GameObject("gazeEmpty");
+		showGazeInfo = false;
 		}
+
+	void OnGUI(){
+
+		if (IsRec == false &&  showGazeInfo == true){
+			for (int i=0; i<PlayerMovPath.Count; i++) {
+				Vector3 toTarget = (PlayerMovPath[i].GazePoint - transform.position).normalized;
+				
+				if (Vector3.Dot(toTarget, transform.forward) > 0)               //Check if object is in front of player. If it's...
+				{
+					ShowGUI = true;
+				} else {                //if it's not...
+					ShowGUI = false;
+				}
+				if (ShowGUI == true)ShowGazeTime(PlayerMovPath[i].GazePoint, i);
+			}
+
+		}
+	}
+
+
 		
 		// Update is called once per frame
 		void Update () {
@@ -78,14 +105,15 @@ using System.Collections.Generic;
 		void KeyPressed (KeyCode keyToPress){
 			
 			if (Input.GetKeyDown (keyToPress)) {
-				wasReleased = false;
+				wasReleased = false;				
 			} 
 			
 			if( Input.GetKeyUp (keyToPress) ){
 				wasReleased = true;
+				
 			}	
 			
-		}
+		}	
 		
 		void SimulateGaze(){
 			
@@ -106,12 +134,18 @@ using System.Collections.Generic;
 		
 		void endRec(){
 			if ((Input.GetKeyDown (KeyCode.E))) {
-				isRec = false;
-				ShowMovPath();		
+			GameObject.Find("TogglePlayerMovPath").GetComponent<Toggle>().isOn = !GameObject.Find("TogglePlayerMovPath").GetComponent<Toggle>().isOn;
+			IsRec = false;
+				
 			}
-			ShowGazePath();
-		}
-		
+			if (Input.GetKeyDown (KeyCode.R)) {
+			GameObject.Find("TogglePlayerGazeOnMovePath").GetComponent<Toggle>().isOn = !GameObject.Find("TogglePlayerGazeOnMovePath").GetComponent<Toggle>().isOn;
+			}
+			if (Input.GetKeyDown (KeyCode.T)) {
+			GameObject.Find("TogglePlayerGazeTime").GetComponent<Toggle>().isOn = !GameObject.Find("TogglePlayerGazeTime").GetComponent<Toggle>().isOn;
+			}
+	}
+	
 		void RecordPlayerPos() {
 			endRec ();
 			if(isRec == true){ 
@@ -119,50 +153,77 @@ using System.Collections.Generic;
 			}
 		}
 		
-		void ShowMovPath(){			
+		public void ShowMovPath(){			
 			if (PlayerMovPathRenderer) {
 				PlayerMovPathRenderer.SetVertexCount (PlayerMovPath.Count);
-				//Debug.Log("Rec End");
+				PlayerMovPathRenderer.enabled = !PlayerMovPathRenderer.enabled;
 				
+			if(IsRec == true){
 				for (int i=0; i<PlayerMovPath.Count; i++) {
 					PlayerMovPathRenderer.SetPosition (i, PlayerMovPath[i].PlayerPosition);
 					CreateGazeEmpty(PlayerMovPath[i].PlayerPosition, PlayerMovPath[i].GazePoint);
 				}
 			}
-		}
-		
-		void CreateGazeEmpty(Vector3 currentPlayerPosition, Vector3 currentGazePoint){
-			GameObject gazeEmpty = new GameObject("gazeEmpty");
-			gazeEmpty.transform.position = currentPlayerPosition;
-			gazeEmpty.AddComponent<LineRenderer>();
-			gazeEmpty.tag = "GazeEmpty";
-			LineRenderer emptyGazeRenderer = gazeEmpty.GetComponent<LineRenderer>();
-			if (emptyGazeRenderer) {
-				emptyGazeRenderer.enabled = false;
-				emptyGazeRenderer.useWorldSpace = true;
-				emptyGazeRenderer.SetWidth(0.01f,0.01f);
-				//emptyGazeRenderer.SetColors(Color.FromKnownColor(KnownColor.Aqua), Color.FromKnownColor(KnownColor.Aqua));
-				emptyGazeRenderer.SetVertexCount (2);
-				emptyGazeRenderer.SetPosition (0, currentPlayerPosition);
-				emptyGazeRenderer.SetPosition (1, currentGazePoint);
 			}
 		}
-		
+
+	void CreateGazeEmpty(Vector3 currentPlayerPosition, Vector3 currentGazePoint){
+		GameObject gazeEmptyInstance;
+		gazeEmptyInstance = Instantiate (gazeEmpty) as GameObject;
+		gazeEmptyInstance.transform.position = currentPlayerPosition;
+		gazeEmptyInstance.AddComponent<LineRenderer>();
+		gazeEmptyInstance.tag = "GazeEmpty";
+		LineRenderer emptyGazeRenderer = gazeEmptyInstance.GetComponent<LineRenderer>();
+		if (emptyGazeRenderer) {
+			emptyGazeRenderer.enabled = false;
+			emptyGazeRenderer.useWorldSpace = true;
+			emptyGazeRenderer.SetWidth(0.01f,0.01f);
+			emptyGazeRenderer.SetVertexCount (2);
+			emptyGazeRenderer.SetPosition (0, currentPlayerPosition);
+			emptyGazeRenderer.SetPosition (1, currentGazePoint);
+		}
+	}
+	
+
 		private bool gazeVisible = false;
-		void ShowGazePath(){		
-			
-			if (Input.GetKeyDown (KeyCode.R)) {
-				
-				//Debug.Log ("Test");
-				foreach (GameObject go in GameObject.FindGameObjectsWithTag("GazeEmpty")) {
+		public void ShowGazePath(){		
+			foreach (GameObject go in GameObject.FindGameObjectsWithTag("GazeEmpty")) {
 					go.GetComponent<LineRenderer>().enabled = !go.GetComponent<LineRenderer>().enabled;
-					gazeVisible = !gazeVisible;
-				}
-				
+					gazeVisible = !gazeVisible;	
+					
 			}
 			
 		}
-		
+
+
+	float boxW = 50f;
+	float boxH = 25f;
+	private void ShowGazeTime(Vector3 pos, int i)
+	{
+
+			Vector2 TextLocation = Camera.main.WorldToScreenPoint(pos);			
+			TextLocation.y = Screen.height - TextLocation.y;			
+			TextLocation.x -= boxW * 0.5f;
+			TextLocation.y -= boxH * 0.5f;			
+			GUI.Box(new Rect(TextLocation.x, TextLocation.y, boxW, boxH), i.ToString());
+
+	}
+
+	public void ShowGazeInfo(){
+		showGazeInfo = !showGazeInfo;
+	}
+
+
+	//http://pastebin.com/2eBVsR4z
+	
+	public bool IsRec {
+		get {
+			return isRec;
+		}
+		set {
+			isRec = value;
+		}
+	}
 	}
 //}
 //https://www.youtube.com/watch?v=P0PHY1hJp5k
@@ -202,6 +263,7 @@ public class RecordData {
 	}
 	//https://www.youtube.com/watch?v=Ul_rdZqGhJw
 }
+//}
 
 
 
